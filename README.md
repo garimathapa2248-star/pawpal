@@ -4,7 +4,7 @@ You are building **PawPal+**, a Streamlit app that helps a pet owner plan care t
 
 ## Scenario
 
-A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
+A busy pet owner needs help staying consistent with pet care. They want an assistant that can:  
 
 - Track pet care tasks (walks, feeding, meds, enrichment, grooming, etc.)
 - Consider constraints (time available, priority, owner preferences)
