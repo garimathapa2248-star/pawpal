@@ -70,3 +70,16 @@ python -m pytest
 Confidence Level: ⭐⭐⭐⭐⭐ (5/5 stars)
 
 All core edge cases for time-based sorting, recurring task transitions (including month-end scenarios), and conflict detection have been verified with passing pytest results. The test suite ensures the scheduler reliably handles empty task lists, simultaneous tasks for different pets, and task recurrence across temporal boundaries.
+
+### Features: 
+Sorting by Time — Tasks are ordered chronologically using sort_by_time() on their HH:MM timestamps.
+Conflict Warnings — detect_conflicts() scans pending tasks and warns when two or more tasks share the same time slot.
+Daily/Weekly Recurrence — complete_task() automatically creates the next occurrence of recurring tasks and preserves task attributes.
+Bandwidth-Aware Scheduling — generateDailyPlan() respects owner time/energy limits via OwnerBandwidth.canFitTask().
+Viability & Preference Filtering — Tasks are included only if isViable() is true and no pet preferences are violated.
+Dependency-Aware Optional Task Selection — Optional tasks are scheduled only after required dependency titles are already included.
+Wellness Debt Prioritization — Optional tasks are prioritized by task priority, wellness debt, and duration to optimize the daily plan.
+
+### 📸 Demo:
+
+
