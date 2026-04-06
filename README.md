@@ -50,3 +50,23 @@ The scheduler now includes intelligent algorithmic features to optimize pet care
 - Flexible Filtering: Filter tasks by completion status or pet name to view focused task subsets for planning and tracking.
 - Recurring Task Automation: Daily and weekly recurring tasks automatically generate new instances upon completion, ensuring consistent pet care without manual re-entry.
 - Conflict Detection: The scheduler identifies time conflicts between tasks at the same time slot and provides lightweight, actionable warnings to prevent scheduling overlaps.
+
+## Testing PawPal+
+
+Run the test suite using:
+
+```bash
+python -m pytest
+```
+
+### Test Coverage
+
+- Sorting Correctness: Tasks are ordered in chronological order by their assigned time slots (HH:MM format), handling edge cases like empty lists and identical times.
+- Recurrence Logic: Daily and weekly recurring tasks automatically generate new instances with correct status and properties upon completion, including transitions across month boundaries.
+- Conflict Detection: The system identifies time overlaps between tasks across multiple pets and generates actionable warnings without false positives.
+
+### System Reliability
+
+Confidence Level: ⭐⭐⭐⭐⭐ (5/5 stars)
+
+All core edge cases for time-based sorting, recurring task transitions (including month-end scenarios), and conflict detection have been verified with passing pytest results. The test suite ensures the scheduler reliably handles empty task lists, simultaneous tasks for different pets, and task recurrence across temporal boundaries.
