@@ -82,4 +82,12 @@ Wellness Debt Prioritization — Optional tasks are prioritized by task priority
 
 ### 📸 Demo:
 
+<a href='pawpal_demo.png' target='_blank'><img src='demo_1.png' width='700'></a>
+
+<a href='pawpal_demo.png' target='_blank'><img src='demo_2.png' width='700'></a>
+
+<a href='pawpal_demo.png' target='_blank'><img src='demo_3.png' width='700'></a>
+
+<a href='pawpal_demo.png' target='_blank'><img src='demo_4.png' width='700'></a>
+
 
