@@ -1,6 +1,12 @@
 import streamlit as st
+from pawpal_system import Owner, PetProfile, CareTask, ReSyncCoordinator, OwnerBandwidth
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
+
+# Initialize Owner in session_state as a 'vault' for persistent data across app interactions
+if 'owner' not in st.session_state:
+    bandwidth = OwnerBandwidth(480, 480, 5, True)  # Default: 8 hours, energy 5
+    st.session_state.owner = Owner("Jordan", bandwidth)
 
 st.title("🐾 PawPal+")
 
@@ -43,11 +49,15 @@ owner_name = st.text_input("Owner name", value="Jordan")
 pet_name = st.text_input("Pet name", value="Mochi")
 species = st.selectbox("Species", ["dog", "cat", "other"])
 
+# Add Pet button
+if st.button("Add Pet"):
+    pet = PetProfile(pet_name, species)
+    st.session_state.owner.addPet(pet)
+    st.success(f"Pet '{pet_name}' added successfully!")
+    st.rerun()  # Trigger rerun to update UI
+
 st.markdown("### Tasks")
 st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
-
-if "tasks" not in st.session_state:
-    st.session_state.tasks = []
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -58,31 +68,45 @@ with col3:
     priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
 if st.button("Add task"):
-    st.session_state.tasks.append(
-        {"title": task_title, "duration_minutes": int(duration), "priority": priority}
-    )
+    if st.session_state.owner.pets:
+        pet = st.session_state.owner.pets[-1]  # Add to the last added pet
+        task = CareTask(task_title, f"Task: {task_title}", duration, "daily", 2, "Indoor", "General", priority)
+        pet.optional_tasks.append(task)
+        st.success(f"Task '{task_title}' added to {pet.pet_name}!")
+        st.rerun()
+    else:
+        st.error("Please add a pet first.")
 
-if st.session_state.tasks:
-    st.write("Current tasks:")
-    st.table(st.session_state.tasks)
+# Display current pets and tasks
+if st.session_state.owner.pets:
+    st.write("Current Pets and Tasks:")
+    for pet in st.session_state.owner.pets:
+        st.write(f"**{pet.pet_name} ({pet.species})**")
+        all_tasks = pet.baseline_tasks + pet.optional_tasks
+        if all_tasks:
+            for task in all_tasks:
+                st.write(f"- {task.title} ({task.duration_minutes} min, {task.priority})")
+        else:
+            st.write("- No tasks yet.")
 else:
-    st.info("No tasks yet. Add one above.")
+    st.info("No pets added yet.")
 
 st.divider()
 
 st.subheader("Build Schedule")
-st.caption("This button should call your scheduling logic once you implement it.")
+st.caption("This button calls your scheduling logic.")
 
 if st.button("Generate schedule"):
-    st.warning(
-        "Not implemented yet. Next step: create your scheduling logic (classes/functions) and call it here."
-    )
-    st.markdown(
-        """
-Suggested approach:
-1. Design your UML (draft).
-2. Create class stubs (no logic).
-3. Implement scheduling behavior.
-4. Connect your scheduler here and display results.
-"""
-    )
+    if st.session_state.owner.pets:
+        scheduler = ReSyncCoordinator(st.session_state.owner)
+        schedule = scheduler.generateDailyPlan()
+        st.success("Schedule generated!")
+        if schedule:
+            st.write("**Today's Schedule:**")
+            for i, task in enumerate(schedule, 1):
+                st.write(f"{i}. {task.summary()}")
+            st.write(f"Remaining time: {st.session_state.owner.bandwidth.remaining_minutes} minutes")
+        else:
+            st.info("No tasks scheduled.")
+    else:
+        st.error("Please add a pet and tasks first.")

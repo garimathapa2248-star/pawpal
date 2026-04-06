@@ -81,7 +81,10 @@ One key change was adding contextual attributes to CareTask, such as weather and
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+The scheduler implements exact-match time detection for conflict resolution, checking only for tasks scheduled at identical times rather than considering overlapping durations based on task lengths.
+
 - Why is that tradeoff reasonable for this scenario?
+This approach keeps the system lightweight and performant for an MVP by avoiding complex duration-based overlap calculations, which would require additional computational overhead and data structures. For a minimum viable product focused on core scheduling functionality, exact-match detection provides sufficient conflict awareness while maintaining simplicity and fast execution, allowing for future enhancement to full duration logic as the system scales.
 
 ---
 

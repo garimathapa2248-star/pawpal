@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Dict
+from datetime import datetime, timedelta
 
 
 @dataclass
@@ -16,6 +17,7 @@ class CareTask:
     available: bool = True
     weather: str = "clear"
     dependencies: List[str] = None
+    time: str = "00:00"  # HH:MM format
 
     def __post_init__(self):
         if self.dependencies is None:
@@ -125,6 +127,7 @@ class ReSyncCoordinator:
         self.scheduled_tasks: List[CareTask] = []
 
     def generateDailyPlan(self) -> List[CareTask]:
+        """Generate an optimized daily care plan respecting owner bandwidth and pet preferences."""
         self.owner.bandwidth.reset()  # Reset time
         self.scheduled_tasks = []
         all_tasks = self.candidate_tasks.copy()
@@ -159,6 +162,7 @@ class ReSyncCoordinator:
         return self.scheduled_tasks
 
     def resolveConflicts(self) -> None:
+        """Remove tasks that violate bandwidth or preference constraints from the schedule."""
         # Remove tasks that don't fit or violate prefs
         self.scheduled_tasks = [
             task for task in self.scheduled_tasks 
@@ -166,6 +170,7 @@ class ReSyncCoordinator:
         ]
 
     def explainDecision(self, task: CareTask) -> str:
+        """Provide a human-readable explanation for why a task was included or excluded."""
         if task in self.scheduled_tasks:
             reasons = []
             for pet in self.owner.pets:
@@ -188,6 +193,7 @@ class ReSyncCoordinator:
                 return f"{task.title} was excluded due to time or energy constraints."
 
     def prioritizeTasks(self) -> List[CareTask]:
+        """Sort candidate tasks by priority, wellness debt, and duration for optimal scheduling."""
         debt_scores = {}
         for pet in self.owner.pets:
             for cat, debt in pet.wellness_debt.items():
@@ -199,7 +205,115 @@ class ReSyncCoordinator:
         ))
 
     def updateDebt(self) -> None:
+        """Decrement wellness debt for each pet based on completed tasks in the schedule."""
         for task in self.scheduled_tasks:
             for pet in self.owner.pets:
                 if task.category in pet.wellness_debt:
                     pet.wellness_debt[task.category] = max(0, pet.wellness_debt[task.category] - 1)
+
+    def sort_by_time(self, tasks: List[CareTask]) -> List[CareTask]:
+        """Sort tasks by their time attribute in 'HH:MM' format."""
+        def time_to_minutes(time_str: str) -> int:
+            """Convert 'HH:MM' string to minutes since midnight."""
+            hours, minutes = map(int, time_str.split(':'))
+            return hours * 60 + minutes
+        
+        return sorted(tasks, key=lambda task: time_to_minutes(task.time))
+
+    def filter_tasks(self, tasks: List[CareTask] = None, status: str = None, pet_name: str = None) -> List[CareTask]:
+        """Filter tasks by completion status and/or pet name."""
+        if tasks is None:
+            tasks = self.candidate_tasks
+        
+        filtered_tasks = tasks.copy()
+        
+        # Filter by status if provided
+        if status is not None:
+            filtered_tasks = [task for task in filtered_tasks if task.status == status]
+        
+        # Filter by pet name if provided
+        if pet_name is not None:
+            pet_tasks = []
+            for pet in self.owner.pets:
+                if pet.pet_name == pet_name:
+                    pet_tasks.extend(pet.baseline_tasks)
+                    pet_tasks.extend(pet.optional_tasks)
+            # Only keep tasks that belong to the specified pet
+            filtered_tasks = [task for task in filtered_tasks if task in pet_tasks]
+        
+        return filtered_tasks
+
+    def complete_task(self, task: CareTask) -> None:
+        """Mark a task as completed and handle recurrence if applicable."""
+        # Mark the original task as completed
+        task.markCompleted()
+        
+        # Check if task is recurring
+        if task.frequency.lower() in ['daily', 'weekly']:
+            # Find which pet this task belongs to
+            for pet in self.owner.pets:
+                if task in pet.baseline_tasks or task in pet.optional_tasks:
+                    # Calculate next occurrence
+                    today = datetime.now().date()
+                    if task.frequency.lower() == 'daily':
+                        next_date = today + timedelta(days=1)
+                    elif task.frequency.lower() == 'weekly':
+                        next_date = today + timedelta(weeks=1)
+                    
+                    # Create a new task instance for the next occurrence
+                    new_task = CareTask(
+                        title=task.title,
+                        description=task.description,
+                        duration_minutes=task.duration_minutes,
+                        frequency=task.frequency,
+                        effort_level=task.effort_level,
+                        location=task.location,
+                        category=task.category,
+                        priority=task.priority,
+                        status="pending",  # Fresh incomplete copy
+                        available=task.available,
+                        weather=task.weather,
+                        dependencies=task.dependencies.copy() if task.dependencies else None,
+                        time=task.time
+                    )
+                    
+                    # Add the new task to the same pet's appropriate list
+                    if task in pet.baseline_tasks:
+                        pet.baseline_tasks.append(new_task)
+                    else:
+                        pet.optional_tasks.append(new_task)
+                    
+                    # Update candidate tasks to include the new recurring task
+                    self.candidate_tasks.append(new_task)
+                    break  # Found the pet, no need to continue
+
+    def detect_conflicts(self, tasks: List[CareTask] = None) -> List[str]:
+        """Detect time conflicts between tasks across all pets using a lightweight warning approach."""
+        warnings = []
+        time_slots = {}
+        
+        # If tasks are provided, use them; otherwise scan all pet tasks
+        if tasks is not None:
+            task_list = tasks
+        else:
+            task_list = []
+            for pet in self.owner.pets:
+                task_list.extend(pet.baseline_tasks + pet.optional_tasks)
+        
+        # Collect all tasks with their times using setdefault for efficiency
+        for task in task_list:
+            if task.time != "00:00" and task.status == "pending":  # Only check pending tasks that have been assigned times
+                time_slots.setdefault(task.time, []).append(task)
+        
+        # Check for conflicts at each time slot
+        for time_slot, tasks_at_time in time_slots.items():
+            if len(tasks_at_time) > 1:
+                # Multiple tasks at the same time - create warning
+                task_names = [task.title for task in tasks_at_time]
+                if len(task_names) == 2:
+                    warning = f"Warning: {task_names[0]} and {task_names[1]} both scheduled for {time_slot}"
+                else:
+                    warning = f"Warning: {', '.join(task_names[:-1])}, and {task_names[-1]} all scheduled for {time_slot}"
+                warnings.append(warning)
+        
+        return warnings
